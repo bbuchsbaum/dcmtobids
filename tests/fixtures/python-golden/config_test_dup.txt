@@ -1,0 +1,6 @@
+sub-01/localizer/sub-01_dup-01_localizer.json
+sub-01/localizer/sub-01_dup-01_localizer.nii
+sub-01/localizer/sub-01_dup-02_localizer.json
+sub-01/localizer/sub-01_dup-02_localizer.nii
+sub-01/localizer/sub-01_localizer.json
+sub-01/localizer/sub-01_localizer.nii

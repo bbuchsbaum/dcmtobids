@@ -1,0 +1,14 @@
+sub-01/ses-dev/anat/sub-01_ses-dev_T1w.json
+sub-01/ses-dev/anat/sub-01_ses-dev_T1w.nii
+sub-01/ses-dev/dwi/sub-01_ses-dev_desc-fa01_dwi.json
+sub-01/ses-dev/dwi/sub-01_ses-dev_desc-trace_dwi.json
+sub-01/ses-dev/dwi/sub-01_ses-dev_dwi.json
+sub-01/ses-dev/dwi/sub-01_ses-dev_dwi.nii.gz
+sub-01/ses-dev/fmap/sub-01_ses-dev_echo-492_fmap.json
+sub-01/ses-dev/fmap/sub-01_ses-dev_echo-738_fmap.json
+sub-01/ses-dev/localizer/sub-01_ses-dev_run-01_localizer.json
+sub-01/ses-dev/localizer/sub-01_ses-dev_run-01_localizer.nii
+sub-01/ses-dev/localizer/sub-01_ses-dev_run-02_localizer.json
+sub-01/ses-dev/localizer/sub-01_ses-dev_run-02_localizer.nii
+sub-01/ses-dev/localizer/sub-01_ses-dev_run-03_localizer.json
+sub-01/ses-dev/localizer/sub-01_ses-dev_run-03_localizer.nii

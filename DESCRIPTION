@@ -1,0 +1,29 @@
+Package: dcmtobids
+Title: DICOM to BIDS Conversion with Dry-Run Planning
+Version: 0.1.0
+Authors@R: 
+    person(given = "Core",
+           family = "Maintainer",
+           role = c("aut", "cre"),
+           email = "maintainer@example.com")
+Description: Provides an R implementation of DICOM sidecar matching and
+    conversion to BIDS-style filenames and directories, with config
+    validation, dry-run planning, and a command-line interface. This
+    package is an independent R port that adapts behavior from the
+    GPL-3-licensed dcm2bids Python project.
+License: GPL-3
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.2
+Imports:
+    cli,
+    fs,
+    jsonlite,
+    optparse,
+    utils
+Suggests:
+    knitr,
+    rmarkdown,
+    testthat (>= 3.0.0)
+VignetteBuilder: knitr
+Config/testthat/edition: 3

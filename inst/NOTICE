@@ -1,0 +1,24 @@
+dcmtobids: upstream attribution and license notice
+==================================================
+
+This package is an independent R port of functionality provided by the
+dcm2bids Python project.
+
+Upstream project:
+  dcm2bids
+  https://github.com/UNFmontreal/Dcm2Bids
+
+Upstream copyright:
+  Copyright (C) 2017 Christophe Bedetti
+  and dcm2bids contributors
+
+Upstream license:
+  GNU General Public License, version 3 (GPL-3)
+
+Port notice:
+  The R code in this repository re-implements and adapts behavior from
+  dcm2bids. Modifications for the R port were made in 2026.
+
+Warranty:
+  This software is distributed WITHOUT ANY WARRANTY; without even the
+  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.

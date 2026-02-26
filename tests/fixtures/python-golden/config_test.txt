@@ -1,0 +1,13 @@
+sub-01/anat/sub-01_T1w.json
+sub-01/anat/sub-01_T1w.nii
+sub-01/dwi/sub-01_dwi.json
+sub-01/dwi/sub-01_dwi.nii.gz
+sub-01/fmap/sub-01_echo-492_fmap.json
+sub-01/fmap/sub-01_echo-738_fmap.json
+sub-01/func/sub-01_task-rest_acq-highres_bold.json
+sub-01/localizer/sub-01_run-01_localizer.json
+sub-01/localizer/sub-01_run-01_localizer.nii
+sub-01/localizer/sub-01_run-02_localizer.json
+sub-01/localizer/sub-01_run-02_localizer.nii
+sub-01/localizer/sub-01_run-03_localizer.json
+sub-01/localizer/sub-01_run-03_localizer.nii

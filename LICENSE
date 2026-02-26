@@ -1,0 +1,9 @@
+dcmtobids is distributed under the GNU General Public License, version 3
+(GPL-3). See DESCRIPTION for the canonical package license declaration.
+
+This project adapts behavior from the dcm2bids Python project, which is also
+distributed under GPL-3. Upstream attribution and a bundled copy of the
+upstream license are provided in:
+
+- inst/NOTICE
+- inst/licenses/dcm2bids-LICENSE.txt

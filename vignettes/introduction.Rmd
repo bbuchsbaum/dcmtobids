@@ -1,0 +1,134 @@
+---
+title: "Introduction to dcmtobids"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Introduction to dcmtobids}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+`dcmtobids` provides an R implementation of key DICOM-to-BIDS planning and
+conversion steps:
+
+- validate a config
+- build a conversion plan (dry-run)
+- execute conversion
+- produce a structured QA report
+
+This vignette uses precomputed helper-like files (`.json`, `.nii.gz`) so it can
+run without real DICOM data or `dcm2niix`.
+
+## Setup
+
+```{r}
+library(dcmtobids)
+library(jsonlite)
+
+td <- tempfile("dcmtobids-vig-")
+dir.create(td)
+
+input_dir <- file.path(td, "input")
+bids_dir <- file.path(td, "bids")
+config_path <- file.path(td, "config.json")
+
+dir.create(input_dir)
+dir.create(bids_dir)
+```
+
+## Create Minimal Example Inputs
+
+```{r}
+writeLines('{"SeriesDescription":"T1_MPRAGE"}', file.path(input_dir, "001.json"))
+writeLines("dummy", file.path(input_dir, "001.nii.gz"))
+
+writeLines('{"SeriesDescription":"task-rest_bold"}', file.path(input_dir, "002.json"))
+writeLines("dummy", file.path(input_dir, "002.nii.gz"))
+```
+
+## Write and Validate Config
+
+```{r}
+cfg <- list(
+  descriptions = list(
+    list(
+      datatype = "anat",
+      suffix = "T1w",
+      criteria = list(SeriesDescription = "*T1*")
+    ),
+    list(
+      datatype = "func",
+      suffix = "bold",
+      custom_entities = list("task-rest"),
+      criteria = list(SeriesDescription = "*rest*")
+    )
+  )
+)
+
+writeLines(toJSON(cfg, auto_unbox = TRUE, pretty = TRUE), config_path)
+
+config <- read_config(config_path)
+validate_config(config)
+```
+
+## Build Dry-Run Plan
+
+```{r}
+plan <- plan_conversion(
+  config = config,
+  input_dir = input_dir,
+  participant_label = "01"
+)
+
+plan[, c("source_json", "status", "destination_dir", "destination_stem")]
+```
+
+## Convert
+
+```{r}
+conversion <- convert_plan(
+  plan = plan,
+  bids_dir = bids_dir,
+  clobber = FALSE
+)
+
+conversion
+```
+
+## Summarize QA Report
+
+```{r}
+report <- summarize_plan(plan, conversion = conversion)
+report$qa
+```
+
+## Inspect Outputs
+
+```{r}
+list.files(bids_dir, recursive = TRUE)
+```
+
+## CLI Equivalent
+
+```{r, eval = FALSE}
+# Create starter config
+dcmtobids init-config --output ./config.json
+
+# Preflight checks
+dcmtobids doctor --skip-dcm2niix --config ./config.json --bids-dir ./bids
+
+# Run conversion from helper-style files
+dcmtobids run \
+  --skip-dcm2niix \
+  --dicom-dir ./input \
+  --config ./config.json \
+  --bids-dir ./bids \
+  --participant 01 \
+  --report ./report.json
+```

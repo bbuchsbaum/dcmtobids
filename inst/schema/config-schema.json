@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.org/dcmtobids/config-schema.json",
+  "title": "dcmtobids config",
+  "type": "object",
+  "required": ["descriptions"],
+  "properties": {
+    "search_method": {"type": "string", "enum": ["fnmatch", "re"]},
+    "case_sensitive": {"type": "boolean"},
+    "do_not_reorder_entities": {"type": "boolean"},
+    "dup_method": {"type": "string", "enum": ["run", "dup"]},
+    "bids_uri": {"type": "string", "enum": ["URI", "relative"]},
+    "descriptions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["datatype", "suffix", "criteria"],
+        "properties": {
+          "id": {"type": "string"},
+          "datatype": {"type": "string"},
+          "suffix": {"type": "string"},
+          "custom_entities": {
+            "oneOf": [
+              {"type": "string"},
+              {"type": "array", "items": {"type": "string"}}
+            ]
+          },
+          "criteria": {"type": "object"},
+          "sidecar_changes": {"type": "object"}
+        }
+      }
+    }
+  }
+}
