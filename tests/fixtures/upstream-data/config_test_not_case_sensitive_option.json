@@ -1,0 +1,27 @@
+{
+    "case_sensitive": false,
+    "search_method": "fnmatch",
+    "descriptions": [
+        {
+          "datatype": "localizer",
+          "suffix": "localizer",
+          "criteria": {
+              "ProtocolName": "LOCALIZER"
+          }
+        },
+        {
+            "datatype": "anat",
+            "suffix": "T1w",
+            "criteria": {
+                "SeriesDescription": "*mprage*"
+            }
+        },
+        {
+            "datatype": "dwi",
+            "suffix": "dwi",
+            "criteria": {
+                "SeriesDescription": "DtI"
+            }
+        }
+    ]
+}

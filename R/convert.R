@@ -197,6 +197,22 @@ convert_plan <- function(
     }
 
     dst_base <- file.path(bids_dir, plan$destination_dir[[i]], plan$destination_stem[[i]])
+    dsts <- paste0(dst_base, vapply(files, infer_file_ext, character(1)))
+    existing_dsts <- dsts[fs::file_exists(dsts)]
+
+    if (length(existing_dsts) && !isTRUE(clobber)) {
+      emit_warning(
+        code = "W_OUTPUT_EXISTS_SKIPPED",
+        message = paste0(
+          "Skipping existing acquisition (use --clobber): ",
+          plan$destination_stem[[i]]
+        ),
+        severity = "warning",
+        context = list(paths = existing_dsts, destination_stem = plan$destination_stem[[i]])
+      )
+      skipped <- skipped + length(files)
+      next
+    }
 
     for (src in files) {
       ext <- infer_file_ext(src)
@@ -204,34 +220,23 @@ convert_plan <- function(
 
       ok <- tryCatch({
         if (identical(ext, ".json")) {
-          if (fs::file_exists(dst) && !isTRUE(clobber)) {
-            emit_warning(
-              code = "W_OUTPUT_EXISTS_SKIPPED",
-              message = paste0("Skipping existing file (use --clobber): ", dst),
-              severity = "warning",
-              context = list(path = dst, ext = ext)
-            )
-            FALSE
-          } else {
-            data <- read_json_file(src)
-            data$Dcm2bidsVersion <- as.character(utils::packageVersion("dcmtobids"))
-            if (!is.na(plan$task_name[[i]]) && nzchar(plan$task_name[[i]])) {
-              data$TaskName <- plan$task_name[[i]]
-            }
-            data <- apply_sidecar_changes(
-              data = data,
-              sidecar_changes = plan$sidecar_changes[[i]],
-              id_map = id_map,
-              participant_label = plan$participant_label[[i]],
-              bids_uri = bids_uri,
-              warning_sink = emit_warning
-            )
-            write_json_file(dst, data)
-            fs::file_delete(src)
-            TRUE
+          data <- read_json_file(src)
+          data$Dcm2bidsVersion <- as.character(utils::packageVersion("dcmtobids"))
+          if (!is.na(plan$task_name[[i]]) && nzchar(plan$task_name[[i]])) {
+            data$TaskName <- plan$task_name[[i]]
           }
+          data <- apply_sidecar_changes(
+            data = data,
+            sidecar_changes = plan$sidecar_changes[[i]],
+            id_map = id_map,
+            participant_label = plan$participant_label[[i]],
+            bids_uri = bids_uri,
+            warning_sink = emit_warning
+          )
+          write_json_file(dst, data)
+          TRUE
         } else {
-          safe_move_file(src, dst, clobber = clobber)
+          safe_copy_file(src, dst, clobber = clobber)
         }
       }, error = function(e) {
         emit_warning(

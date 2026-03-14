@@ -16,22 +16,37 @@ read_config <- function(config_path) {
 #' Validate a dcmtobids config object
 #'
 #' @param config Parsed config list
+#' @param warning_sink Optional warning collector callback
 #' @return Invisibly TRUE on success
 #' @export
-validate_config <- function(config) {
+validate_config <- function(config, warning_sink = NULL) {
   if (!is_named_list(config)) {
     cli::cli_abort("Config must be a JSON object.")
   }
 
   search_method <- config$search_method %||% "fnmatch"
   if (!search_method %in% ALLOWED_SEARCH_METHODS) {
-    cli::cli_alert_warning(
-      "search_method {.val {search_method}} is unsupported; falling back to {.val {ALLOWED_SEARCH_METHODS[[1]]}}."
+    emit_structured_event(
+      code = "W_UNSUPPORTED_SEARCH_METHOD",
+      message = paste0(
+        "search_method ", search_method,
+        " is unsupported; falling back to ", ALLOWED_SEARCH_METHODS[[1]], "."
+      ),
+      warning_sink = warning_sink,
+      context = list(value = search_method)
     )
   }
 
   if (!is.null(config$dup_method) && !config$dup_method %in% ALLOWED_DUP_METHODS) {
-    cli::cli_alert_warning("dup_method {.val {config$dup_method}} is unsupported; falling back to {.val {ALLOWED_DUP_METHODS[[1]]}}.")
+    emit_structured_event(
+      code = "W_UNSUPPORTED_DUP_METHOD",
+      message = paste0(
+        "dup_method ", config$dup_method,
+        " is unsupported; falling back to ", ALLOWED_DUP_METHODS[[1]], "."
+      ),
+      warning_sink = warning_sink,
+      context = list(value = config$dup_method)
+    )
   }
 
   if (!is.null(config$bids_uri) && !config$bids_uri %in% ALLOWED_BIDS_URI) {
@@ -39,7 +54,12 @@ validate_config <- function(config) {
   }
 
   if (!is.null(config$case_sensitive) && !isTRUE(config$case_sensitive %in% c(TRUE, FALSE))) {
-    cli::cli_alert_warning("case_sensitive is not boolean; falling back to TRUE.")
+    emit_structured_event(
+      code = "W_CASE_SENSITIVE_INVALID",
+      message = "case_sensitive is not boolean; falling back to TRUE.",
+      warning_sink = warning_sink,
+      context = list(value = config$case_sensitive)
+    )
   }
 
   if (!is.null(config$do_not_reorder_entities) &&
@@ -95,7 +115,12 @@ validate_config <- function(config) {
 
   dup_ids <- unique(ids[duplicated(ids)])
   if (length(dup_ids)) {
-    cli::cli_alert_warning("Duplicate IDs detected: {.val {dup_ids}}")
+    emit_structured_event(
+      code = "W_DUPLICATE_IDS",
+      message = paste0("Duplicate IDs detected: ", paste(dup_ids, collapse = ", ")),
+      warning_sink = warning_sink,
+      context = list(ids = dup_ids)
+    )
   }
 
   for (i in seq_along(descriptions)) {
@@ -105,8 +130,13 @@ validate_config <- function(config) {
       if (identical(di$datatype, dj$datatype) &&
           identical(di$suffix, dj$suffix) &&
           identical(serialized[[i]], serialized[[j]])) {
-        cli::cli_alert_warning(
-          "Potential overlapping criteria between descriptions[{j}] and descriptions[{i}]."
+        emit_structured_event(
+          code = "W_OVERLAPPING_CRITERIA",
+          message = paste0(
+            "Potential overlapping criteria between descriptions[", j, "] and descriptions[", i, "]."
+          ),
+          warning_sink = warning_sink,
+          context = list(left = j, right = i)
         )
       }
     }

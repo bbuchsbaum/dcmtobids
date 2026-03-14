@@ -1,3 +1,13 @@
-^Dcm2Bids$
-^CODEBASE_EXPLORATION\\.md$
-^\\.omc$
+(^|/)Dcm2Bids($|/)
+(^|/)heudiconv($|/)
+(^|/)\\.omc($|/)
+(^|/)CODEBASE_EXPLORATION\\.md$
+(^|/)docs($|/)
+(^|/)\\.github$
+(^|/)\\.github/
+(^|/)\\.github($|/)
+(^|/)tools($|/)
+(^|/)\\.Rcheck($|/)
+(^|/).+\\.Rcheck($|/)
+(^|/)\\.rcmdcheck_result\\.rds$
+(^|/)dcmtobids_.*\\.tar\\.gz$

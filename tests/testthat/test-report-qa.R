@@ -71,3 +71,20 @@ test_that("helper warnings propagate into report qa codes", {
   codes <- code_set(report)
   expect_true("W_HELPER_REUSED" %in% codes)
 })
+
+test_that("duplicate resolution is preserved in report metadata", {
+  td <- tempfile("dcmtobids-report-dup-")
+  dir.create(td)
+  input_dir <- file.path(td, "input")
+  dir.create(input_dir)
+  copy_fixture_sidecars(input_dir)
+
+  config <- read_config(fixture_config_path("config_test_dup.json"))
+  plan <- plan_conversion(config, input_dir, participant_label = "01")
+  report <- summarize_plan(plan)
+
+  expect_true("W_DUPLICATE_DESTINATION" %in% code_set(report))
+  expect_true(length(report$duplicate_resolution) >= 1L)
+  expect_equal(report$duplicate_resolution[[1]]$original_stem, "sub-01_localizer")
+  expect_true(all(grepl("^sub-01(_dup-[0-9]{2})?_localizer$", report$duplicate_resolution[[1]]$resolved_stems)))
+})

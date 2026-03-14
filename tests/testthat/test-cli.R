@@ -138,6 +138,50 @@ test_that("convert can fail on warnings for CI gating", {
   expect_equal(status, 1L)
 })
 
+test_that("convert fail-on-warning catches planning warnings", {
+  td <- tempfile("dcmtobids-cli-planwarn-")
+  dir.create(td)
+  input_dir <- file.path(td, "input")
+  bids_dir <- file.path(td, "bids")
+  dir.create(input_dir)
+
+  writeLines(
+    '{"SeriesDescription":"fmap_pa","PhaseEncodingDirection":"k"}',
+    file.path(input_dir, "001.json")
+  )
+  writeLines("dummy", file.path(input_dir, "001.nii.gz"))
+
+  config <- file.path(td, "config.json")
+  writeLines(
+    jsonlite::toJSON(
+      list(
+        descriptions = list(
+          list(
+            datatype = "fmap",
+            suffix = "epi",
+            criteria = list(SeriesDescription = "*fmap*")
+          )
+        )
+      ),
+      auto_unbox = TRUE,
+      pretty = TRUE
+    ),
+    config
+  )
+
+  status <- dcmtobids_main(c(
+    "convert",
+    "--config", config,
+    "--input-dir", input_dir,
+    "--bids-dir", bids_dir,
+    "--participant", "01",
+    "--auto-extract-entities",
+    "--fail-on-warning"
+  ))
+
+  expect_equal(status, 1L)
+})
+
 test_that("inspect command reports inventory and writes TSV", {
   td <- tempfile("dcmtobids-cli-inspect-")
   dir.create(td)

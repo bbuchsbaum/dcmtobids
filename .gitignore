@@ -2,3 +2,8 @@
 Dcm2Bids/
 heudiconv/
 CODEBASE_EXPLORATION.md
+.Rcheck/
+..Rcheck/
+*.Rcheck/
+.rcmdcheck_result.rds
+dcmtobids_*.tar.gz

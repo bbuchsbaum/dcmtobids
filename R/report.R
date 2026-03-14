@@ -33,16 +33,13 @@ aggregate_warning_codes <- function(events) {
 #' @export
 summarize_plan <- function(plan, conversion = NULL, helper = NULL) {
   matched <- plan[plan$status == "MATCHED", , drop = FALSE]
-  duplicates <- list()
-  if (nrow(matched)) {
-    stems <- split(seq_len(nrow(matched)), matched$destination_stem)
-    stems <- stems[vapply(stems, length, integer(1)) > 1L]
-    duplicates <- lapply(stems, function(idx) {
-      as.character(matched$source_json[idx])
-    })
-  }
+  duplicates <- attr(plan, "duplicate_resolution", exact = TRUE) %||% list()
 
   warning_events <- list()
+  plan_warnings <- attr(plan, "warnings", exact = TRUE)
+  if (length(plan_warnings)) {
+    warning_events <- c(warning_events, plan_warnings)
+  }
 
   add_event <- function(code, message, severity = "warning", context = list()) {
     warning_events[[length(warning_events) + 1L]] <<- list(
@@ -118,6 +115,7 @@ summarize_plan <- function(plan, conversion = NULL, helper = NULL) {
     unmatched = as.character(plan$source_json[plan$status == "SKIPPED"]),
     ambiguous = as.character(plan$source_json[plan$status == "AMBIGUOUS"]),
     duplicate_destinations = duplicates,
+    duplicate_resolution = duplicates,
     warnings = warning_events,
     qa = list(
       gate = qa_gate,

@@ -392,13 +392,10 @@ run_inspect_cli <- function(args) {
   0L
 }
 
-run_populate_cli <- function(args) {
-  opts <- parse_populate_opts(args)
-  config <- read_config(opts$config)
-
+plan_from_cli <- function(config, opts, input_dir) {
   plan <- plan_conversion(
     config = config,
-    input_dir = opts$input_dir,
+    input_dir = input_dir,
     participant_label = opts$participant,
     session_label = opts$session,
     search_method = config$search_method %||% "fnmatch",
@@ -407,6 +404,39 @@ run_populate_cli <- function(args) {
     do_not_reorder_entities = isTRUE(opts$do_not_reorder_entities) || (config$do_not_reorder_entities %||% FALSE),
     dup_method = config$dup_method %||% "run"
   )
+  plan
+}
+
+write_report_if_requested <- function(report_obj, report_path) {
+  if (!nzchar(report_path)) {
+    return(invisible(FALSE))
+  }
+  write_conversion_report(report_obj, report_path)
+  cli::cli_alert_success("Report written: {.file {fs::path_abs(report_path)}}")
+  invisible(TRUE)
+}
+
+status_from_report <- function(error_count = 0L, report_obj = NULL, fail_on_warning = FALSE) {
+  status_code <- if (isTRUE(error_count > 0L)) 1L else 0L
+  if (identical(status_code, 0L) && isTRUE(fail_on_warning) &&
+      !is.null(report_obj) && !identical(report_obj$qa$gate, "pass")) {
+    cli::cli_alert_warning("Failing because warnings were detected (--fail-on-warning).")
+    status_code <- 1L
+  }
+  status_code
+}
+
+emit_operation_summary <- function(summary, labels = c(updated = "Updated", skipped = "Skipped", errors = "Errors")) {
+  cli::cli_rule()
+  for (nm in names(labels)) {
+    cli::cli_alert_info("{labels[[nm]]}: {summary[[nm]] %||% 0L}")
+  }
+}
+
+run_populate_cli <- function(args) {
+  opts <- parse_populate_opts(args)
+  config <- read_config(opts$config)
+  plan <- plan_from_cli(config, opts, opts$input_dir)
 
   pop_summary <- populate_intended_for_plan(
     plan = plan,
@@ -414,24 +444,14 @@ run_populate_cli <- function(args) {
     bids_uri = if (nzchar(opts$bids_uri)) opts$bids_uri else (config$bids_uri %||% "URI")
   )
 
-  cli::cli_rule()
-  cli::cli_alert_info("Updated: {pop_summary$updated}")
-  cli::cli_alert_info("Skipped: {pop_summary$skipped}")
-  cli::cli_alert_info("Errors: {pop_summary$errors}")
-
+  emit_operation_summary(pop_summary)
   report_obj <- summarize_population(pop_summary)
-  if (nzchar(opts$report)) {
-    write_conversion_report(report_obj, opts$report)
-    cli::cli_alert_success("Report written: {.file {fs::path_abs(opts$report)}}")
-  }
-
-  status_code <- 0L
-  if (pop_summary$errors > 0L) {
-    status_code <- 1L
-  } else if (isTRUE(opts$fail_on_warning) && !identical(report_obj$qa$gate, "pass")) {
-    cli::cli_alert_warning("Failing because warnings were detected (--fail-on-warning).")
-    status_code <- 1L
-  }
+  write_report_if_requested(report_obj, opts$report)
+  status_code <- status_from_report(
+    error_count = pop_summary$errors,
+    report_obj = report_obj,
+    fail_on_warning = opts$fail_on_warning
+  )
 
   record_cli_run(
     command = "populate-intended-for",
@@ -450,25 +470,10 @@ run_populate_cli <- function(args) {
 run_dry_run_cli <- function(args) {
   opts <- parse_plan_opts(args, include_clobber = FALSE)
   config <- read_config(opts$config)
-
-  plan <- plan_conversion(
-    config = config,
-    input_dir = opts$input_dir,
-    participant_label = opts$participant,
-    session_label = opts$session,
-    search_method = config$search_method %||% "fnmatch",
-    case_sensitive = if (isTRUE(opts$case_insensitive)) FALSE else (config$case_sensitive %||% TRUE),
-    auto_extract_entities = isTRUE(opts$auto_extract_entities) || (config$auto_extract_entities %||% FALSE),
-    do_not_reorder_entities = isTRUE(opts$do_not_reorder_entities) || (config$do_not_reorder_entities %||% FALSE),
-    dup_method = config$dup_method %||% "run"
-  )
-
+  plan <- plan_from_cli(config, opts, opts$input_dir)
   print_dry_run_plan(plan, bids_dir = fs::path_abs(opts$bids_dir))
   report_obj <- summarize_plan(plan)
-  if (nzchar(opts$report)) {
-    write_conversion_report(report_obj, opts$report)
-    cli::cli_alert_success("Report written: {.file {fs::path_abs(opts$report)}}")
-  }
+  write_report_if_requested(report_obj, opts$report)
 
   record_cli_run(
     command = "dry-run",
@@ -485,19 +490,7 @@ run_dry_run_cli <- function(args) {
 run_convert_cli <- function(args) {
   opts <- parse_plan_opts(args, include_clobber = TRUE)
   config <- read_config(opts$config)
-
-  plan <- plan_conversion(
-    config = config,
-    input_dir = opts$input_dir,
-    participant_label = opts$participant,
-    session_label = opts$session,
-    search_method = config$search_method %||% "fnmatch",
-    case_sensitive = if (isTRUE(opts$case_insensitive)) FALSE else (config$case_sensitive %||% TRUE),
-    auto_extract_entities = isTRUE(opts$auto_extract_entities) || (config$auto_extract_entities %||% FALSE),
-    do_not_reorder_entities = isTRUE(opts$do_not_reorder_entities) || (config$do_not_reorder_entities %||% FALSE),
-    dup_method = config$dup_method %||% "run"
-  )
-
+  plan <- plan_from_cli(config, opts, opts$input_dir)
   print_dry_run_plan(plan, bids_dir = fs::path_abs(opts$bids_dir))
   summary <- convert_plan(
     plan = plan,
@@ -507,27 +500,21 @@ run_convert_cli <- function(args) {
     post_op = config$post_op %||% list()
   )
 
-  cli::cli_rule()
-  cli::cli_alert_info("Converted: {summary$converted}")
-  cli::cli_alert_info("Skipped: {summary$skipped}")
-  cli::cli_alert_info("Errors: {summary$errors}")
+  emit_operation_summary(
+    summary,
+    labels = c(converted = "Converted", skipped = "Skipped", errors = "Errors")
+  )
 
   report_obj <- NULL
   if (nzchar(opts$report) || isTRUE(opts$fail_on_warning)) {
     report_obj <- summarize_plan(plan, conversion = summary)
   }
-  if (nzchar(opts$report)) {
-    write_conversion_report(report_obj, opts$report)
-    cli::cli_alert_success("Report written: {.file {fs::path_abs(opts$report)}}")
-  }
-
-  status_code <- 0L
-  if (summary$errors > 0L) {
-    status_code <- 1L
-  } else if (isTRUE(opts$fail_on_warning) && !identical(report_obj$qa$gate, "pass")) {
-    cli::cli_alert_warning("Failing because warnings were detected (--fail-on-warning).")
-    status_code <- 1L
-  }
+  write_report_if_requested(report_obj, opts$report)
+  status_code <- status_from_report(
+    error_count = summary$errors,
+    report_obj = report_obj,
+    fail_on_warning = opts$fail_on_warning
+  )
 
   record_cli_run(
     command = "convert",
@@ -574,18 +561,7 @@ run_full_cli <- function(args) {
     skip_dcm2niix = isTRUE(opts$skip_dcm2niix)
   )
 
-  plan <- plan_conversion(
-    config = config,
-    input_dir = helper$output_dir,
-    participant_label = participant_label,
-    session_label = session_label,
-    search_method = config$search_method %||% "fnmatch",
-    case_sensitive = if (isTRUE(opts$case_insensitive)) FALSE else (config$case_sensitive %||% TRUE),
-    auto_extract_entities = isTRUE(opts$auto_extract_entities) || (config$auto_extract_entities %||% FALSE),
-    do_not_reorder_entities = isTRUE(opts$do_not_reorder_entities) || (config$do_not_reorder_entities %||% FALSE),
-    dup_method = config$dup_method %||% "run"
-  )
-
+  plan <- plan_from_cli(config, opts, helper$output_dir)
   print_dry_run_plan(plan, bids_dir = fs::path_abs(opts$bids_dir))
   summary <- convert_plan(
     plan = plan,
@@ -595,10 +571,10 @@ run_full_cli <- function(args) {
     post_op = config$post_op %||% list()
   )
 
-  cli::cli_rule()
-  cli::cli_alert_info("Converted: {summary$converted}")
-  cli::cli_alert_info("Skipped: {summary$skipped}")
-  cli::cli_alert_info("Errors: {summary$errors}")
+  emit_operation_summary(
+    summary,
+    labels = c(converted = "Converted", skipped = "Skipped", errors = "Errors")
+  )
 
   report_obj <- NULL
   if (nzchar(opts$report) || isTRUE(opts$fail_on_warning)) {
@@ -612,18 +588,12 @@ run_full_cli <- function(args) {
       )
     )
   }
-  if (nzchar(opts$report)) {
-    write_conversion_report(report_obj, opts$report)
-    cli::cli_alert_success("Report written: {.file {fs::path_abs(opts$report)}}")
-  }
-
-  status_code <- 0L
-  if (summary$errors > 0L) {
-    status_code <- 1L
-  } else if (isTRUE(opts$fail_on_warning) && !identical(report_obj$qa$gate, "pass")) {
-    cli::cli_alert_warning("Failing because warnings were detected (--fail-on-warning).")
-    status_code <- 1L
-  }
+  write_report_if_requested(report_obj, opts$report)
+  status_code <- status_from_report(
+    error_count = summary$errors,
+    report_obj = report_obj,
+    fail_on_warning = opts$fail_on_warning
+  )
 
   record_cli_run(
     command = "run",

@@ -1,0 +1,96 @@
+{
+    "search_method": "fnmatch",
+    "extractors": {"SeriesDescription": ["task-(?P<task>[a-zA-Z0-9]+)"]},
+    "descriptions": [
+        {
+            "datatype": "localizer",
+            "suffix": "localizer",
+            "custom_entities": "dummy01",
+            "criteria": {
+                "SeriesDescription": "locali*"
+            },
+            "sidecar_changes": {
+                "ProcedureStepDescription": "Modify by dcm2bids"
+            }
+        },
+        {
+            "id": "func_task-rest",
+            "datatype": "func",
+            "suffix": "bold",
+            "custom_entities": ["task", "acq-highres"],
+            "criteria": {
+                "SeriesDescription": "*bold*",
+                "ImageType": ["ORIG?NAL", "PRIMARY", "M", "ND", "MOSAIC"]
+            }
+        },
+        {
+            "id": "T1",
+            "datatype": "anat",
+            "suffix": "T1w",
+            "criteria": {
+                "SidecarFilename": "*MPRAGE*"
+            }
+        },
+        {
+            "id": "id_dwi",
+            "datatype": "dwi",
+            "suffix": "dwi",
+            "criteria": {
+                "SeriesDescription": "DTI"
+            }
+        },
+        {
+            "datatype": "fmap",
+            "suffix": "fmap",
+            "custom_entities": "echo-492",
+            "criteria": {
+                "EchoNumber": 1,
+                "EchoTime": 0.00492
+            },
+            "sidecar_changes": {
+                "IntendedFor": ["id_dwi", "T1", "dummy"]
+            }
+        },
+        {
+            "datatype": "fmap",
+            "suffix": "fmap",
+            "custom_entities": "echo-738",
+            "criteria": {
+                "EchoNumber": 2,
+                "EchoTime": 0.00738,
+                "ImageType": ["ORIGINAL", "PRIMARY", "M", "ND"]
+            },
+            "sidecar_changes": {
+                "IntendedFor": "id_dwi"
+            }
+        },
+        {
+            "datatype": "dwi",
+            "suffix": "dwi",
+            "custom_entities": "desc-fa00",
+            "criteria": {
+                "SeriesDescription": "DTI_FA"
+            },
+            "sidecar_changes": {
+                "IntendedFor": ["id_dwi", "T1"]
+            }
+        },
+        {
+            "datatype": "dwi",
+            "suffix": "dwi",
+            "custom_entities": "desc-fa01",
+            "criteria": {
+                "SeriesDescription": "DTI_FA"
+            }
+        },
+        {
+            "datatype": "dwi",
+            "suffix": "dwi",
+            "custom_entities": "desc-fa00",
+            "criteria": {
+                "SeriesDescription": ["DTI_FA"],
+                "ImageType": ["DTI_FA", "M"]
+            }
+        }
+    ]
+}

@@ -62,6 +62,9 @@ dcmtobids help
 - `convert`: convert from helper/NIfTI+JSON directory.
 - `run`: one-command DICOM -> BIDS (`dcm2niix` + convert).
 
+`convert` copies helper/NIfTI inputs into the BIDS output tree; it does not
+consume the source helper directory.
+
 ## Turnkey Setup Flow
 
 ```bash

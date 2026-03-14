@@ -1,0 +1,37 @@
+{
+    "search_method": "random_method",
+    "dup_method": "random_dup",
+    "case_sensitive": "random_case_sensitive",
+    "descriptions": [
+        {
+            "datatype": "localizer",
+            "suffix": "localizer",
+            "criteria": {
+                "SeriesDescription": {
+                "any": ["localizer1", "localizer2"]
+                }
+            }
+        },
+        {
+            "datatype": "fmap",
+            "suffix": "fmap",
+            "criteria": {
+                "ProtocolName": "gre_field_mapping",
+                "ImageType": {
+                "any": [["ORIGINAL", "PRIMARY", "M", "ND"],
+                        ["ORIGINAL", "PRIMARY", "P", "ND"]]
+                }
+            }
+        },
+        {
+            "datatype": "anat",
+            "suffix": "T1w",
+            "criteria": {
+                "SeriesDescription": "MPRAGE",
+                "ImageType": {
+                "any": ["PRIMARY"]
+                }
+            }
+        }       
+    ]
+}

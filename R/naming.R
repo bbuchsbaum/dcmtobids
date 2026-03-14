@@ -69,6 +69,7 @@ apply_duplicate_entities <- function(plan, dup_method = "run") {
 
   method <- if (identical(dup_method, "dup")) "dup" else "run"
   groups <- split(matched, plan$destination_stem[matched])
+  resolutions <- list()
 
   for (grp in groups) {
     if (length(grp) <= 1L) {
@@ -85,6 +86,9 @@ apply_duplicate_entities <- function(plan, dup_method = "run") {
       assign_idx <- assign_idx[-length(assign_idx)]
     }
 
+    original_stem <- plan$destination_stem[[grp[[1]]]]
+    resolved_stems <- character(length(grp))
+
     for (i in assign_idx) {
       idx <- grp[[i]]
       ents <- normalize_custom_entities(plan$custom_entities[[idx]])
@@ -97,8 +101,22 @@ apply_duplicate_entities <- function(plan, dup_method = "run") {
         suffix = plan$suffix[[idx]],
         do_not_reorder_entities = plan$do_not_reorder_entities[[idx]]
       )
+      resolved_stems[[i]] <- plan$destination_stem[[idx]]
     }
+
+    if (identical(method, "dup")) {
+      last_idx <- grp[[length(grp)]]
+      resolved_stems[[length(grp)]] <- plan$destination_stem[[last_idx]]
+    }
+
+    resolutions[[length(resolutions) + 1L]] <- list(
+      original_stem = original_stem,
+      method = method,
+      sources = as.character(plan$source_json[grp]),
+      resolved_stems = resolved_stems
+    )
   }
 
+  attr(plan, "duplicate_resolution") <- resolutions
   plan
 }

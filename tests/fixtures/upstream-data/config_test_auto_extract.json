@@ -1,0 +1,59 @@
+{
+    "search_method": "re",
+    "extractors": {"SeriesDescription": ["random-(?P<random>[a-zA-Z0-9]+)"]},
+    "descriptions": [
+        {
+            "datatype": "localizer",
+            "suffix": "localizer",
+            "criteria": {
+                "SeriesDescription": "localizer(1|2)"
+            }
+        },
+        {
+            "id": "func_task-rest",
+            "datatype": "func",
+            "suffix": "bold",
+            "custom_entities": ["acq-highres", "random"],
+            "criteria": {
+                "SeriesDescription": ".*bold.*"
+            }
+        },
+        {
+            "id": "T1",
+            "datatype": "anat",
+            "suffix": "T1w",
+            "criteria": {
+                "SeriesDescription": "MPRAGE"
+            }
+        },
+        {
+            "id": "id_dwi",
+            "datatype": "dwi",
+            "suffix": "dwi",
+            "criteria": {
+                "SeriesDescription": "DTI$"
+            }
+        },
+        {
+            "datatype": "fmap",
+            "suffix": "epi",
+            "criteria": {
+                "SeriesDescription": "gre_field_mapping"
+            },
+            "sidecar_changes": { 
+                "IntendedFor": ["id_dwi", "T1", "dummy"]
+            }
+        },
+        {
+            "datatype": "dwi",
+            "suffix": "dwi",
+            "custom_entities": "desc-fa00",
+            "criteria": {
+                "SeriesDescription": "DTI_FA"
+            },
+            "sidecar_changes": { 
+                "IntendedFor": ["id_dwi", "T1"] 
+            }
+        }
+    ]
+}

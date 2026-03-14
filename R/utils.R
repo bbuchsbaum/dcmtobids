@@ -2,6 +2,29 @@
   if (is.null(x)) y else x
 }
 
+emit_structured_event <- function(
+    code,
+    message,
+    warning_sink = NULL,
+    severity = "warning",
+    context = list()
+) {
+  if (is.function(warning_sink)) {
+    warning_sink(
+      code = code,
+      message = message,
+      severity = severity,
+      context = context
+    )
+  } else if (identical(severity, "error")) {
+    cli::cli_alert_warning(message)
+  } else if (identical(severity, "warning")) {
+    cli::cli_alert_warning(message)
+  } else {
+    cli::cli_alert_info(message)
+  }
+}
+
 is_named_list <- function(x) {
   is.list(x) && !is.null(names(x)) && all(nzchar(names(x)))
 }
@@ -135,6 +158,17 @@ safe_move_file <- function(src, dst, clobber = FALSE) {
   })
 
   moved
+}
+
+safe_copy_file <- function(src, dst, clobber = FALSE) {
+  fs::dir_create(dirname(dst), recurse = TRUE)
+
+  if (fs::file_exists(dst) && !clobber) {
+    return(FALSE)
+  }
+
+  fs::file_copy(src, dst, overwrite = clobber)
+  TRUE
 }
 
 find_associated_files <- function(src_root) {

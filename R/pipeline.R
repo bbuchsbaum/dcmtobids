@@ -96,7 +96,7 @@ combine_extractors <- function(user_extractors, auto_extract_entities = FALSE) {
   out
 }
 
-extract_entities <- function(sidecar_data, desc, config) {
+extract_entities <- function(sidecar_data, desc, config, warning_sink = NULL) {
   custom_entities <- normalize_custom_entities(desc$custom_entities)
   extractors <- combine_extractors(config$extractors, isTRUE(config$auto_extract_entities))
   extracted <- list()
@@ -147,8 +147,19 @@ extract_entities <- function(sidecar_data, desc, config) {
     found <- intersect(names(extracted), wanted)
     missing <- setdiff(wanted, c(found, requested_keys))
     if (length(missing)) {
-      cli::cli_alert_warning(
-        "Entities {.val {missing}} were not found for datatype {.val {desc$datatype}} suffix {.val {desc$suffix}}."
+      emit_structured_event(
+        code = "W_AUTO_ENTITY_MISSING",
+        message = paste0(
+          "Entities ", paste(missing, collapse = ", "),
+          " were not found for datatype ", desc$datatype,
+          " suffix ", desc$suffix, "."
+        ),
+        warning_sink = warning_sink,
+        context = list(
+          datatype = desc$datatype,
+          suffix = desc$suffix,
+          missing = missing
+        )
       )
     }
     entities <- unique(c(entities, found))
@@ -216,26 +227,64 @@ plan_conversion <- function(
     case_sensitive = config$case_sensitive %||% TRUE,
     auto_extract_entities = config$auto_extract_entities %||% FALSE,
     do_not_reorder_entities = config$do_not_reorder_entities %||% FALSE,
-    dup_method = config$dup_method %||% "run"
+    dup_method = config$dup_method %||% "run",
+    warning_sink = NULL
 ) {
-  validate_config(config)
+  warning_events <- list()
+  collect_warning <- function(code, message, severity = "warning", context = list()) {
+    warning_events[[length(warning_events) + 1L]] <<- list(
+      code = code,
+      severity = severity,
+      message = message,
+      context = context
+    )
+    emit_structured_event(
+      code = code,
+      message = message,
+      warning_sink = warning_sink,
+      severity = severity,
+      context = context
+    )
+  }
+
+  validate_config(config, warning_sink = collect_warning)
   config <- config
   config$auto_extract_entities <- isTRUE(auto_extract_entities)
 
   if (!search_method %in% ALLOWED_SEARCH_METHODS) {
-    cli::cli_alert_warning(
-      "search_method {.val {search_method}} is unsupported; falling back to {.val {ALLOWED_SEARCH_METHODS[[1]]}}."
-    )
+    if (!identical(search_method, config$search_method %||% NULL)) {
+      collect_warning(
+        code = "W_UNSUPPORTED_SEARCH_METHOD",
+        message = paste0(
+          "search_method ", search_method,
+          " is unsupported; falling back to ", ALLOWED_SEARCH_METHODS[[1]], "."
+        ),
+        context = list(value = search_method)
+      )
+    }
     search_method <- ALLOWED_SEARCH_METHODS[[1]]
   }
   if (!isTRUE(case_sensitive %in% c(TRUE, FALSE))) {
-    cli::cli_alert_warning("case_sensitive is not boolean; falling back to TRUE.")
+    if (!identical(case_sensitive, config$case_sensitive %||% NULL)) {
+      collect_warning(
+        code = "W_CASE_SENSITIVE_INVALID",
+        message = "case_sensitive is not boolean; falling back to TRUE.",
+        context = list(value = case_sensitive)
+      )
+    }
     case_sensitive <- TRUE
   }
   if (!dup_method %in% ALLOWED_DUP_METHODS) {
-    cli::cli_alert_warning(
-      "dup_method {.val {dup_method}} is unsupported; falling back to {.val {ALLOWED_DUP_METHODS[[1]]}}."
-    )
+    if (!identical(dup_method, config$dup_method %||% NULL)) {
+      collect_warning(
+        code = "W_UNSUPPORTED_DUP_METHOD",
+        message = paste0(
+          "dup_method ", dup_method,
+          " is unsupported; falling back to ", ALLOWED_DUP_METHODS[[1]], "."
+        ),
+        context = list(value = dup_method)
+      )
+    }
     dup_method <- ALLOWED_DUP_METHODS[[1]]
   }
 
@@ -246,7 +295,11 @@ plan_conversion <- function(
   descriptions <- config$descriptions
 
   if (!length(sidecars)) {
-    cli::cli_alert_warning("No JSON sidecars found in {.file {input_dir}}.")
+    collect_warning(
+      code = "W_NO_JSON_SIDECARS",
+      message = paste0("No JSON sidecars found in ", input_dir, "."),
+      context = list(input_dir = input_dir)
+    )
   }
 
   rows <- vector("list", length(sidecars))
@@ -313,7 +366,7 @@ plan_conversion <- function(
     }
 
     desc <- descriptions[[matches[[1]]]]
-    extracted <- extract_entities(sidecar$data, desc, config)
+    extracted <- extract_entities(sidecar$data, desc, config, warning_sink = collect_warning)
 
     custom_entities <- extracted$custom_entities
     stem <- build_bids_stem(
@@ -349,8 +402,10 @@ plan_conversion <- function(
   }
 
   plan <- do.call(rbind, rows)
+  plan$destination_stem_original <- plan$destination_stem
   plan <- apply_duplicate_entities(plan, dup_method = dup_method)
   rownames(plan) <- NULL
+  attr(plan, "warnings") <- warning_events
   plan
 }
 

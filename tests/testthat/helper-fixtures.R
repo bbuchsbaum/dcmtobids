@@ -1,5 +1,5 @@
 upstream_data_dir <- function() {
-  root <- normalizePath(file.path(testthat::test_path("..", ".."), "Dcm2Bids", "tests", "data"), mustWork = TRUE)
+  root <- normalizePath(testthat::test_path("..", "fixtures", "upstream-data"), mustWork = TRUE)
   root
 }
 

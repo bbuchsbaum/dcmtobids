@@ -101,6 +101,10 @@ conversion <- convert_plan(
 conversion
 ```
 
+`convert_plan()` copies helper-style inputs into the BIDS tree and leaves the
+source helper directory in place, which makes dry-run and rerun workflows less
+fragile.
+
 ## Summarize QA Report
 
 ```{r}
