@@ -5,6 +5,19 @@ count_named <- function(x) {
   out
 }
 
+compute_qa_gate <- function(qa_codes) {
+  has_error <- any(vapply(qa_codes, function(x) identical(x$severity, "error"), logical(1)))
+  has_warning <- any(vapply(qa_codes, function(x) identical(x$severity, "warning"), logical(1)))
+
+  if (has_error) {
+    "fail"
+  } else if (has_warning) {
+    "warn"
+  } else {
+    "pass"
+  }
+}
+
 aggregate_warning_codes <- function(events) {
   if (!length(events)) {
     return(list())
@@ -29,6 +42,8 @@ aggregate_warning_codes <- function(events) {
 #'
 #' @param plan Plan from [plan_conversion()]
 #' @param conversion Optional conversion summary from [convert_plan()]
+#' @param helper Optional helper summary from [run_dcm2niix()] containing
+#'   helper warnings to merge into the report
 #' @return Named list report
 #' @export
 summarize_plan <- function(plan, conversion = NULL, helper = NULL) {
@@ -100,13 +115,7 @@ summarize_plan <- function(plan, conversion = NULL, helper = NULL) {
   }
 
   qa_codes <- aggregate_warning_codes(warning_events)
-  qa_gate <- if (any(vapply(qa_codes, function(x) identical(x$severity, "error"), logical(1)))) {
-    "fail"
-  } else if (length(qa_codes) > 0L) {
-    "warn"
-  } else {
-    "pass"
-  }
+  qa_gate <- compute_qa_gate(qa_codes)
 
   report <- list(
     generated_at = format(Sys.time(), tz = "UTC", usetz = TRUE),
@@ -165,13 +174,7 @@ summarize_population <- function(population) {
   }
 
   qa_codes <- aggregate_warning_codes(warning_events)
-  qa_gate <- if (any(vapply(qa_codes, function(x) identical(x$severity, "error"), logical(1)))) {
-    "fail"
-  } else if (length(qa_codes) > 0L) {
-    "warn"
-  } else {
-    "pass"
-  }
+  qa_gate <- compute_qa_gate(qa_codes)
 
   list(
     generated_at = format(Sys.time(), tz = "UTC", usetz = TRUE),

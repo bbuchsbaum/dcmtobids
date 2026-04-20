@@ -10,6 +10,9 @@ summarize_plan(plan, conversion = NULL, helper = NULL)
 \item{plan}{Plan from \code{\link[=plan_conversion]{plan_conversion()}}}
 
 \item{conversion}{Optional conversion summary from \code{\link[=convert_plan]{convert_plan()}}}
+
+\item{helper}{Optional helper summary from \code{\link[=run_dcm2niix]{run_dcm2niix()}} containing
+helper warnings to merge into the report}
 }
 \value{
 Named list report

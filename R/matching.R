@@ -97,7 +97,7 @@ compare_float <- function(name, pattern) {
   )
 }
 
-criteria_matches <- function(data, criteria, search_method = "fnmatch", case_sensitive = TRUE) {
+criteria_matches <- function(data, criteria, search_method = "fnmatch", case_sensitive = TRUE, warning_sink = NULL) {
   if (!is_named_list(criteria)) {
     return(FALSE)
   }
@@ -119,6 +119,12 @@ criteria_matches <- function(data, criteria, search_method = "fnmatch", case_sen
       } else if (key %in% c("lt", "gt", "le", "ge", "btw", "btwe")) {
         out[[idx]] <- compare_float(name, pattern)
       } else {
+        emit_structured_event(
+          code = "W_UNSUPPORTED_CRITERIA_KEY",
+          message = paste0("Criteria key '", key, "' on field '", tag, "' is not supported."),
+          warning_sink = warning_sink,
+          context = list(field = tag, key = key)
+        )
         out[[idx]] <- FALSE
       }
     } else if (is.list(name) || (is.atomic(name) && length(name) > 1L)) {

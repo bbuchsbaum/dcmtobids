@@ -1,13 +1,11 @@
 launcher_script_text <- function(lib_path = .libPaths()[1]) {
-  lib_path <- gsub("'", "\\\\'", lib_path, fixed = TRUE)
   c(
     "#!/usr/bin/env bash",
     "set -euo pipefail",
-    paste0(
-      "Rscript --vanilla -e \".libPaths(c(Sys.getenv('DCMTOBIDS_R_LIBS', unset='",
-      lib_path,
-      "'), .libPaths())); status <- dcmtobids::dcmtobids_main(commandArgs(trailingOnly = TRUE)); quit(save='no', status=status, runLast=FALSE)\" \"$@\""
-    )
+    paste0("DCMTOBIDS_DEFAULT_LIB=", shQuote(lib_path, type = "sh")),
+    ": \"${DCMTOBIDS_R_LIBS:=$DCMTOBIDS_DEFAULT_LIB}\"",
+    "export DCMTOBIDS_R_LIBS",
+    "Rscript --vanilla -e '.libPaths(c(strsplit(Sys.getenv(\"DCMTOBIDS_R_LIBS\"), .Platform$path.sep, fixed = TRUE)[[1]], .libPaths())); status <- dcmtobids::dcmtobids_main(commandArgs(trailingOnly = TRUE)); quit(save=\"no\", status=status, runLast=FALSE)' \"$@\""
   )
 }
 

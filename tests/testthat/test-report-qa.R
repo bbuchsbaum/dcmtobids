@@ -69,7 +69,8 @@ test_that("helper warnings propagate into report qa codes", {
 
   report <- summarize_plan(plan, conversion = list(converted = 0, skipped = 0, errors = 0, warnings = list()), helper = h2)
   codes <- code_set(report)
-  expect_true("W_HELPER_REUSED" %in% codes)
+  expect_true("I_HELPER_REUSED" %in% codes)
+  expect_equal(report$qa$gate, "pass")
 })
 
 test_that("duplicate resolution is preserved in report metadata", {

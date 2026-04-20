@@ -127,9 +127,9 @@ run_dcm2niix <- function(
 
   if (length(existing) && !isTRUE(force)) {
     emit_warning(
-      code = "W_HELPER_REUSED",
+      code = "I_HELPER_REUSED",
       message = paste0("Existing helper output found at ", output_dir, "; reusing (use --force-dcm2bids to regenerate)."),
-      severity = "warning",
+      severity = "info",
       context = list(output_dir = output_dir)
     )
     reused <- TRUE
@@ -205,6 +205,9 @@ run_dcm2niix <- function(
 #' @param bids_dir Destination BIDS directory
 #' @param participant_label Participant label
 #' @param session_label Session label
+#' @param auto_extract_entities Enable automatic extraction of BIDS entities
+#'   (e.g. `task`, `dir`, `echo`) from sidecar fields
+#' @param do_not_reorder_entities Keep entity order as supplied
 #' @param dcm2niix_bin Name/path of dcm2niix binary
 #' @param dcm2niix_options dcm2niix option string
 #' @param force_dcm2bids Recreate helper output before conversion

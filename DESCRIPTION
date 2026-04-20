@@ -1,9 +1,7 @@
 Package: dcmtobids
 Title: DICOM to BIDS Conversion with Dry-Run Planning
 Version: 0.1.0
-Author: Bradley R. Buchsbaum [aut, cre]
-Maintainer: Bradley R. Buchsbaum <brad.buchsbaum@gmail.com>
-Authors@R: 
+Authors@R:
     person(given = "Bradley R.",
            family = "Buchsbaum",
            role = c("aut", "cre"),
@@ -13,7 +11,7 @@ Description: Provides an R implementation of DICOM sidecar matching and
     validation, dry-run planning, and a command-line interface. This
     package is an independent R port that adapts behavior from the
     GPL-3-licensed dcm2bids Python project.
-License: GPL-3
+License: GPL-3 + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3

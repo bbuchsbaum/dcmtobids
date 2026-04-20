@@ -30,9 +30,15 @@ plan_conversion(
 
 \item{case_sensitive}{Whether matching should be case sensitive}
 
+\item{auto_extract_entities}{Enable automatic extraction of BIDS entities
+(e.g. \code{task}, \code{dir}, \code{echo}) from sidecar fields}
+
 \item{do_not_reorder_entities}{Keep entity order as given}
 
 \item{dup_method}{Duplicate strategy: run or dup}
+
+\item{warning_sink}{Optional callback invoked for each structured warning
+event; used by higher-level commands to capture QA information}
 }
 \value{
 Data frame plan

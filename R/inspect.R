@@ -39,6 +39,7 @@ collapse_sidecar_value <- function(x) {
 #' @param input_dir Directory containing sidecar JSON files
 #' @param fields Sidecar keys to include as columns
 #' @return Data frame inventory
+#' @importFrom utils head
 #' @export
 inspect_sidecars <- function(input_dir, fields = default_inspect_fields()) {
   fields <- unique(as.character(fields))

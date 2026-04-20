@@ -30,6 +30,11 @@ run_dicom_conversion(
 
 \item{session_label}{Session label}
 
+\item{auto_extract_entities}{Enable automatic extraction of BIDS entities
+(e.g. \code{task}, \code{dir}, \code{echo}) from sidecar fields}
+
+\item{do_not_reorder_entities}{Keep entity order as supplied}
+
 \item{dcm2niix_bin}{Name/path of dcm2niix binary}
 
 \item{dcm2niix_options}{dcm2niix option string}

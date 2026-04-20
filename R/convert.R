@@ -318,6 +318,9 @@ convert_plan <- function(
 #' @param bids_dir Destination BIDS directory
 #' @param participant_label Participant label
 #' @param session_label Session label
+#' @param auto_extract_entities Enable automatic extraction of BIDS entities
+#'   (e.g. `task`, `dir`, `echo`) from sidecar fields
+#' @param do_not_reorder_entities Keep entity order as supplied
 #' @param clobber Overwrite existing files
 #' @return Summary list
 #' @export

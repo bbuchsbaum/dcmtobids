@@ -214,8 +214,12 @@ extract_entities <- function(sidecar_data, desc, config, warning_sink = NULL) {
 #' @param session_label Session ID (with or without ses- prefix)
 #' @param search_method Matching method: fnmatch or re
 #' @param case_sensitive Whether matching should be case sensitive
+#' @param auto_extract_entities Enable automatic extraction of BIDS entities
+#'   (e.g. `task`, `dir`, `echo`) from sidecar fields
 #' @param do_not_reorder_entities Keep entity order as given
 #' @param dup_method Duplicate strategy: run or dup
+#' @param warning_sink Optional callback invoked for each structured warning
+#'   event; used by higher-level commands to capture QA information
 #' @return Data frame plan
 #' @export
 plan_conversion <- function(
@@ -248,7 +252,6 @@ plan_conversion <- function(
   }
 
   validate_config(config, warning_sink = collect_warning)
-  config <- config
   config$auto_extract_entities <- isTRUE(auto_extract_entities)
 
   if (!search_method %in% ALLOWED_SEARCH_METHODS) {
@@ -313,7 +316,8 @@ plan_conversion <- function(
         sidecar$data,
         desc$criteria,
         search_method = search_method,
-        case_sensitive = case_sensitive
+        case_sensitive = case_sensitive,
+        warning_sink = collect_warning
       ),
       logical(1)
     ))
