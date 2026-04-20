@@ -1,138 +1,325 @@
 ---
-title: "Introduction to dcmtobids"
+title: "Getting Started with dcmtobids"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Introduction to dcmtobids}
+  %\VignetteIndexEntry{Getting Started with dcmtobids}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
 
-```{r, include = FALSE}
+```{r setup, include = FALSE}
 knitr::opts_chunk$set(
   collapse = TRUE,
-  comment = "#>"
+  comment = "#>",
+  message = FALSE,
+  warning = FALSE
 )
 ```
 
-`dcmtobids` provides an R implementation of key DICOM-to-BIDS planning and
-conversion steps:
-
-- validate a config
-- build a conversion plan (dry-run)
-- execute conversion
-- produce a structured QA report
-
-This vignette uses precomputed helper-like files (`.json`, `.nii.gz`) so it can
-run without real DICOM data or `dcm2niix`.
-
-## Setup
-
-```{r}
+```{r libs, include = FALSE}
 library(dcmtobids)
 library(jsonlite)
-
-td <- tempfile("dcmtobids-vig-")
-dir.create(td)
-
-input_dir <- file.path(td, "input")
-bids_dir <- file.path(td, "bids")
-config_path <- file.path(td, "config.json")
-
-dir.create(input_dir)
-dir.create(bids_dir)
 ```
 
-## Create Minimal Example Inputs
+## The problem
 
-```{r}
-writeLines('{"SeriesDescription":"T1_MPRAGE"}', file.path(input_dir, "001.json"))
-writeLines("dummy", file.path(input_dir, "001.nii.gz"))
+Your scanner hands you a pile of DICOMs with filenames like
+`001_MR_ABCD_T1_MPRAGE_2024-01-15.dcm`. BIDS wants
+`sub-01/anat/sub-01_T1w.nii.gz`. Doing that by hand is miserable and
+error-prone; scripting it one participant at a time buries the rules in
+ad-hoc code that rots between grants.
 
-writeLines('{"SeriesDescription":"task-rest_bold"}', file.path(input_dir, "002.json"))
-writeLines("dummy", file.path(input_dir, "002.nii.gz"))
+`dcmtobids` lets you describe the mapping *once* as a JSON config, then
+plans and executes the conversion — with a dry run you can inspect, a
+structured QA report you can gate CI on, and a post-hoc "rewire
+IntendedFor" command for when your config changes after conversion has
+already happened.
+
+## A first conversion
+
+We'll skip `dcm2niix` for this tour and work directly from the
+NIfTI+JSON sidecars it would produce ("helper-style" inputs).
+Everything below runs without real DICOM data installed.
+
+```{r paths, include = FALSE}
+workspace   <- file.path(tempdir(), paste0("dcmtobids-vig-", sample.int(1e6, 1)))
+input_dir   <- file.path(workspace, "helper")
+bids_dir    <- file.path(workspace, "bids")
+config_path <- file.path(workspace, "config.json")
+dir.create(input_dir, recursive = TRUE)
 ```
 
-## Write and Validate Config
+First, two helper sidecars — a T1 and a resting-state run — as
+`dcm2niix` would have written them:
 
-```{r}
+```{r make-helper}
+writeLines(
+  '{"SeriesDescription": "T1_MPRAGE"}',
+  file.path(input_dir, "001_T1.json")
+)
+writeLines("placeholder", file.path(input_dir, "001_T1.nii.gz"))
+
+writeLines(
+  '{"SeriesDescription": "task-rest_bold", "RepetitionTime": 2.0}',
+  file.path(input_dir, "002_rest.json")
+)
+writeLines("placeholder", file.path(input_dir, "002_rest.nii.gz"))
+```
+
+Then a minimal config with two rules — one per series we expect to see:
+
+```{r write-config}
 cfg <- list(
   descriptions = list(
     list(
       datatype = "anat",
-      suffix = "T1w",
+      suffix   = "T1w",
       criteria = list(SeriesDescription = "*T1*")
     ),
     list(
       datatype = "func",
-      suffix = "bold",
+      suffix   = "bold",
       custom_entities = list("task-rest"),
       criteria = list(SeriesDescription = "*rest*")
     )
   )
 )
-
 writeLines(toJSON(cfg, auto_unbox = TRUE, pretty = TRUE), config_path)
-
-config <- read_config(config_path)
-validate_config(config)
 ```
 
-## Build Dry-Run Plan
+And one call that plans + converts:
 
-```{r}
-plan <- plan_conversion(
-  config = config,
-  input_dir = input_dir,
+```{r first-conversion}
+result <- run_conversion(
+  config_path       = config_path,
+  input_dir         = input_dir,
+  bids_dir          = bids_dir,
   participant_label = "01"
 )
+result[c("converted", "skipped", "errors")]
+```
 
+Here's the BIDS tree that appeared:
+
+```{r show-tree, echo = FALSE}
+show_tree <- function(root, prefix = "") {
+  entries <- sort(list.files(root, full.names = TRUE, include.dirs = TRUE,
+                             all.files = FALSE, no.. = TRUE))
+  entries <- entries[!grepl("/\\.dcmtobids$", entries)]
+  for (i in seq_along(entries)) {
+    is_last <- i == length(entries)
+    cat(prefix, if (is_last) "`-- " else "|-- ", basename(entries[[i]]),
+        "\n", sep = "")
+    if (dir.exists(entries[[i]])) {
+      show_tree(entries[[i]],
+                prefix = paste0(prefix, if (is_last) "    " else "|   "))
+    }
+  }
+}
+cat(basename(bids_dir), "\n", sep = "")
+show_tree(bids_dir)
+```
+
+Four files written, BIDS layout honored. The rest of this vignette
+unpacks *how* that happened and what else you can do at each step.
+
+## The mental model
+
+A dcmtobids config is a **list of `descriptions`**. Each description is
+a rule: *if a sidecar matches these `criteria`, write it to
+`<datatype>/<suffix>` with these optional entities and sidecar edits.*
+
+| Field              | Meaning                                                |
+|:-------------------|:-------------------------------------------------------|
+| `datatype`         | BIDS datatype (`anat`, `func`, `fmap`, `dwi`, …)       |
+| `suffix`           | BIDS suffix (`T1w`, `bold`, `epi`, …)                  |
+| `criteria`         | Required sidecar JSON fields (glob, regex, or numeric) |
+| `custom_entities`  | BIDS key-value tokens (`task-rest`, `dir-AP`, …)       |
+| `id`               | Short tag used by `IntendedFor` / `Sources`            |
+| `sidecar_changes`  | Fields to add or overwrite in the output JSON          |
+
+The pipeline itself has four verbs:
+
+- `plan_conversion()` — match sidecars, return a data-frame plan
+- `print_dry_run_plan()` — preview source → destination mappings
+- `convert_plan()` — execute the plan (copy + rewrite sidecars)
+- `summarize_plan()` — structured QA report with a gate (`pass`/`warn`/`fail`)
+
+`run_conversion()` bundles the first three; `run_dicom_conversion()`
+prepends a `dcm2niix` pass for you.
+
+## Look before you leap: dry-run
+
+Build a plan without touching the output directory:
+
+```{r dry-run}
+config <- read_config(config_path)
+plan   <- plan_conversion(
+  config            = config,
+  input_dir         = input_dir,
+  participant_label = "01"
+)
 plan[, c("source_json", "status", "destination_dir", "destination_stem")]
 ```
 
-## Convert
+Each row is one helper sidecar, tagged `MATCHED`, `SKIPPED` (no rule
+matched), or `AMBIGUOUS` (multiple rules matched). Only `MATCHED` rows
+produce files when you later call `convert_plan()`; ambiguity and
+missed matches are *surfaced*, never executed silently.
 
-```{r}
-conversion <- convert_plan(
-  plan = plan,
-  bids_dir = bids_dir,
-  clobber = FALSE
-)
+For a one-line-per-row view you'd see in the CLI:
 
-conversion
+```{r print-plan}
+print_dry_run_plan(plan, bids_dir = bids_dir)
 ```
 
-`convert_plan()` copies helper-style inputs into the BIDS tree and leaves the
-source helper directory in place, which makes dry-run and rerun workflows less
-fragile.
+## QA report and CI gating
 
-## Summarize QA Report
+`summarize_plan()` produces a stable, machine-readable report:
 
-```{r}
-report <- summarize_plan(plan, conversion = conversion)
+```{r qa-report}
+report <- summarize_plan(plan)
 report$qa
 ```
 
-## Inspect Outputs
+`gate` summarizes severity:
 
-```{r}
-list.files(bids_dir, recursive = TRUE)
+- `pass` — no warning or error events
+- `warn` — at least one warning (no-match, ambiguous, missing ID, …)
+- `fail` — at least one error event
+
+`codes` aggregates stable codes (`W_NO_MATCH`, `W_AMBIGUOUS_MATCH`,
+`W_MISSING_ID_REFERENCE`, `E_CONVERSION_ERRORS`, …) so you can pattern-
+match in automation. The CLI flag `--fail-on-warning` translates any
+non-`pass` gate into a non-zero exit status, which is the standard way
+to gate CI pipelines.
+
+## Richer criteria
+
+Beyond glob patterns, `criteria` supports list equality and numeric
+ranges. Add a diffusion helper to see both:
+
+```{r extra-helper}
+writeLines(
+  toJSON(list(
+    SeriesDescription = "ep2d_diff",
+    EchoTime          = 0.0738,
+    ImageType         = list("ORIGINAL", "PRIMARY", "DIFFUSION", "ND")
+  ), auto_unbox = TRUE),
+  file.path(input_dir, "003_dwi.json")
+)
+writeLines("placeholder", file.path(input_dir, "003_dwi.nii.gz"))
 ```
 
-## CLI Equivalent
+A rule that requires both the exact `ImageType` list *and* an echo time
+within a window:
 
-```{r, eval = FALSE}
-# Create starter config
-dcmtobids init-config --output ./config.json
+```{r float-criteria}
+dwi_rule <- list(
+  datatype = "dwi",
+  suffix   = "dwi",
+  criteria = list(
+    ImageType = list("ORIGINAL", "PRIMARY", "DIFFUSION", "ND"),
+    EchoTime  = list(btwe = list(0.07, 0.08))
+  )
+)
+```
 
-# Preflight checks
-dcmtobids doctor --skip-dcm2niix --config ./config.json --bids-dir ./bids
+Supported numeric operators are `gt`, `lt`, `ge`, `le`, `btw`
+(exclusive) and `btwe` (inclusive). Use the `any` key to alternate
+patterns against a single field:
 
-# Run conversion from helper-style files
-dcmtobids run \
-  --skip-dcm2niix \
-  --dicom-dir ./input \
-  --config ./config.json \
-  --bids-dir ./bids \
-  --participant 01 \
-  --report ./report.json
+```{r any-criteria, eval = FALSE}
+criteria <- list(
+  SeriesDescription = list(any = list("*rest*", "*resting*"))
+)
+```
+
+Switch the whole config to regex rather than glob by setting
+`search_method = "re"` at the config top level.
+
+## Linking fieldmaps to functionals
+
+BIDS's `IntendedFor` points a fieldmap at the functional images it
+calibrates. In dcmtobids, you tag the *target* with an `id` and
+reference it from the *source*'s `sidecar_changes`:
+
+```{r fmap-config}
+cfg_fmap <- list(
+  descriptions = list(
+    list(
+      id              = "rest",
+      datatype        = "func",
+      suffix          = "bold",
+      custom_entities = list("task-rest"),
+      criteria        = list(SeriesDescription = "*rest*")
+    ),
+    list(
+      datatype        = "fmap",
+      suffix          = "epi",
+      custom_entities = list("dir-AP"),
+      criteria        = list(SeriesDescription = "*fmap*"),
+      sidecar_changes = list(IntendedFor = list("rest"))
+    )
+  )
+)
+```
+
+At conversion, dcmtobids resolves `"rest"` to the BIDS path of the
+matching functional (`bids::sub-01/func/sub-01_task-rest_bold.nii.gz`
+by default, or a participant-relative path if the config sets
+`bids_uri = "relative"`).
+
+## Repairing IntendedFor after the fact
+
+Already ran the conversion and *then* noticed the fmap → bold link is
+wrong? `populate_intended_for_plan()` rewrites only the `IntendedFor`
+and `Sources` keys of existing BIDS sidecars — no file moves, no
+re-copying NIfTIs, so it's safe to run repeatedly after editing the
+config.
+
+```{r populate, eval = FALSE}
+config2 <- read_config(updated_config_path)
+plan2   <- plan_conversion(config2, input_dir, participant_label = "01")
+populate_intended_for_plan(plan2, bids_dir = bids_dir)
+```
+
+The matching CLI verb is `dcmtobids populate-intended-for`; it also
+writes a run manifest (see below) so you have an audit trail of the
+repair.
+
+## CLI equivalents
+
+Every R call has a CLI verb. `dcmtobids::install_cli()` drops a
+launcher into `~/.local/bin`.
+
+| R function                                   | CLI command                           |
+|:---------------------------------------------|:--------------------------------------|
+| `read_config()` / `validate_config()`        | `dcmtobids validate-config`           |
+| `plan_conversion()` + `print_dry_run_plan()` | `dcmtobids dry-run`                   |
+| `convert_plan()`                             | `dcmtobids convert`                   |
+| `run_dicom_conversion()`                     | `dcmtobids run`                       |
+| `populate_intended_for_plan()`               | `dcmtobids populate-intended-for`     |
+| `inspect_sidecars()`                         | `dcmtobids inspect`                   |
+| —                                            | `dcmtobids doctor` (env readiness)    |
+| —                                            | `dcmtobids init-config` (starter)     |
+
+Every CLI command that writes output also drops a **run manifest** at
+`<bids_dir>/.dcmtobids/runs/<timestamp>-<cmd>-<nonce>/` containing the
+plan, the config in use, the QA report, and the exact argv — an
+auditable receipt of each conversion.
+
+## Where to go next
+
+- `?plan_conversion` — all planning options, including
+  `auto_extract_entities` (task/dir/echo extraction from sidecar fields)
+  and `do_not_reorder_entities` (keep custom entity order verbatim)
+- `?convert_plan` — clobber semantics, post-op hooks,
+  `bids_uri = "URI"` vs `"relative"`
+- `?summarize_plan` — full QA report structure and warning-code list
+- `inst/schema/config-schema.json` — the config JSON schema
+- `dcmtobids help` at the shell for the full CLI surface
+
+```{r cleanup, include = FALSE}
+unlink(workspace, recursive = TRUE, force = TRUE)
 ```

@@ -16,3 +16,5 @@
 ^.+\.Rcheck$
 ^\.rcmdcheck_result\.rds$
 ^dcmtobids_.*\.tar\.gz$
+^doc$
+^Meta$
